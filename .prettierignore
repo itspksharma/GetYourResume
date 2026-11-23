@@ -1,0 +1,8 @@
+node_modules
+**/dist
+.wrangler
+**/.wrangler
+test-results
+playwright-report
+package-lock.json
+docs/screenshots
