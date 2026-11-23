@@ -21,15 +21,13 @@ function req(
 beforeEach(() => {
   env = {
     AI: {
-      run: vi
-        .fn()
-        .mockResolvedValue({
-          choices: [
-            {
-              message: { content: JSON.stringify({ text: 'Built a React dashboard.', notes: [] }) },
-            },
-          ],
-        }),
+      run: vi.fn().mockResolvedValue({
+        choices: [
+          {
+            message: { content: JSON.stringify({ text: 'Built a React dashboard.', notes: [] }) },
+          },
+        ],
+      }),
     },
     AI_ENABLED: 'true',
     AI_MODEL: 'model',

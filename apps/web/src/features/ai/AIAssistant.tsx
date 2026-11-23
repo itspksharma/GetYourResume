@@ -27,16 +27,27 @@ const siteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY || '';
 export function AIAssistant({
   profile,
   onAccept,
+  initialAction = 'summary',
+  initialTarget = '',
+  initialFacts,
 }: {
   profile: Profile;
   onAccept?: (text: string, action: AIAction, target: string) => boolean;
+  initialAction?: AIAction;
+  initialTarget?: string;
+  initialFacts?: string;
 }) {
   const enabled = useWorkspace((s) => s.data.aiEnabled);
   const job = useWorkspace((s) => s.data.job);
-  const [action, setAction] = useState<AIAction>('summary');
+  const [action, setAction] = useState<AIAction>(initialAction);
   const [tone, setTone] = useState('concise');
-  const [target, setTarget] = useState('');
-  const [facts, setFacts] = useState(() => profileEvidence(profile).slice(0, 6500));
+  const [target, setTarget] = useState(initialTarget);
+  const [facts, setFacts] = useState(
+    () =>
+      initialFacts ??
+      [profile.personal.title, profileEvidence(profile)].filter(Boolean).join('\n').slice(0, 6500),
+  );
+  const [answers, setAnswers] = useState('');
   const [consent, setConsent] = useState(false);
   const [token, setToken] = useState('');
   const [loading, setLoading] = useState(false);
@@ -148,8 +159,8 @@ export function AIAssistant({
           <Sparkles size={22} />
         </span>
         <div>
-          <h2>A stronger story. Still yours.</h2>
-          <p>Let AI help you express your experience. You stay in control of every word.</p>
+          <h2>AI writing assistance</h2>
+          <p>Draft from your real experience, then review and edit before applying.</p>
         </div>
       </div>
       <div className="form-grid">
@@ -173,7 +184,7 @@ export function AIAssistant({
           </select>
         </label>
       </div>
-      {['improve-bullets', 'tone'].includes(action) && (
+      {['improve-bullets', 'tone', 'interview'].includes(action) && (
         <label className="field">
           Choose an entry to improve
           <select
@@ -210,7 +221,7 @@ export function AIAssistant({
         <div className="notice">
           {job
             ? `The first ${Math.min(job.length, 6000)} characters of your saved job description will also be sent.`
-            : 'Add a job description in Job Analyzer first.'}
+            : 'Add a job description in the Target Job step first.'}
         </div>
       )}
       {!ready && (
@@ -248,13 +259,21 @@ export function AIAssistant({
           variant="outline"
           disabled={loading}
           onClick={() => {
-            const text = standardSummary(profile);
+            const text = ['improve-bullets', 'tone'].includes(action)
+              ? facts
+              : action === 'interview'
+                ? 'What did you build or contribute?\nWhich tools or methods did you use?\nWhat problem did you solve?\nWhat outcome can you support with evidence?\nWhat was your individual responsibility?'
+                : standardSummary(profile);
             if (text) {
-              setAction('summary');
+              if (!['improve-bullets', 'tone', 'interview'].includes(action)) setAction('summary');
               setSuggestion({
                 text,
                 notes: [
-                  'Assembled locally from your supplied facts using fixed rules. This is not AI-generated.',
+                  action === 'interview'
+                    ? 'Standard interview questions. Answer with your own real experience.'
+                    : ['tone', 'improve-bullets'].includes(action)
+                      ? 'Your supplied text is retained for manual editing. No AI rewriting was performed.'
+                      : 'Assembled locally from your supplied facts using fixed rules. This is not AI-generated.',
                 ],
               });
               setEdited(text);
@@ -262,11 +281,11 @@ export function AIAssistant({
               setError('');
             } else
               setError(
-                'Add your professional title, skills, or project details in My Profile first.',
+                'Add your professional title, skills, or project details in the Details step first.',
               );
           }}
         >
-          Use standard resume logic
+          Continue without AI
         </Button>
       </div>
       {error && (
@@ -334,6 +353,37 @@ export function AIAssistant({
               Reject
             </Button>
           </div>
+          {action === 'interview' && (
+            <div className="interview-answers stack">
+              <label className="field">
+                Your answers
+                <textarea
+                  rows={6}
+                  value={answers}
+                  maxLength={7000}
+                  onChange={(e) => setAnswers(e.target.value)}
+                  placeholder="Answer the questions using only your real experience. These answers can become a draft for the selected entry."
+                />
+              </label>
+              <Button
+                disabled={!answers.trim() || !target || !onAccept}
+                onClick={() => {
+                  if (onAccept?.(answers, 'improve-bullets', target)) {
+                    setAccepted(true);
+                  } else
+                    setError(
+                      'Your answers could not be saved. Choose an entry and resolve any storage issues.',
+                    );
+                }}
+              >
+                {accepted ? 'Answers saved' : 'Use my answers in this entry'}
+              </Button>
+              <small>
+                Select an experience or project entry above. Your answers are saved verbatim,
+                without invented claims.
+              </small>
+            </div>
+          )}
           {onAccept && ['tone', 'improve-bullets'].includes(action) && !target && (
             <small>Select the original entry before accepting these bullets.</small>
           )}

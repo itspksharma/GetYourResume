@@ -1,0 +1,21 @@
+# GetYourResume
+
+> A personal, noncommercial resume builder created by Pawan Kumar Sharma, Web Developer.
+
+Canonical website: https://itspksharma.github.io/GetYourResume/
+Creator: Pawan Kumar Sharma
+LinkedIn: https://www.linkedin.com/in/itspksharma98/
+GitHub: https://github.com/itspksharma
+
+## What the application does
+
+- Guided career details, independent resume versions, and three single-column black-text templates.
+- Reviewed Cloudflare Workers AI writing suggestions with a standard non-AI fallback.
+- Deterministic job compatibility estimates; not official ATS scores or hiring predictions.
+- Direct PDF download with selectable text and embedded fonts, without browser print headers or site branding.
+
+## Privacy and limitations
+
+Resume information stays in browser localStorage unless the user explicitly requests AI processing of reviewed facts. No visitor resume content is publicly published by this website. Browser storage is not encrypted. Hosted AI has service and free-allocation limits. No template guarantees ATS acceptance.
+
+This file provides a concise public description. It does not guarantee indexing, rankings, or inclusion in any AI answer service.

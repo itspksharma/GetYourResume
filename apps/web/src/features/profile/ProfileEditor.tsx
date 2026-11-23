@@ -15,6 +15,7 @@ import {
   list,
   type Profile,
   type EntryKind,
+  type AIAction,
 } from '@gyr/shared';
 import { Button } from '@/components/ui/button';
 import {
@@ -29,13 +30,17 @@ import {
   Wrench,
   FolderKanban,
   Award,
+  Sparkles,
+  X,
 } from 'lucide-react';
+import { AIAssistant } from '@/features/ai/AIAssistant';
 
 type Props = {
   profile: Profile;
   onSave: (p: Profile) => boolean;
   onBuild?: () => void;
   compact?: boolean;
+  onDraftChange?: (profile: Profile) => void;
 };
 const steps = [
   { name: 'About you', icon: UserRound },
@@ -45,9 +50,19 @@ const steps = [
   { name: 'Projects', icon: FolderKanban },
   { name: 'More about you', icon: Award },
 ];
-export function ProfileEditor({ profile, onSave, onBuild, compact = false }: Props) {
+export function ProfileEditor({ profile, onSave, onBuild, compact = false, onDraftChange }: Props) {
   const [step, setStep] = useState(0);
   const [status, setStatus] = useState('Changes save automatically');
+  const [aiContext, setAIContext] = useState<{
+    action: AIAction;
+    kind?: EntryKind;
+    target?: string;
+    facts?: string;
+  } | null>(null);
+  const aiRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (aiContext) aiRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }, [aiContext]);
   const {
     register,
     control,
@@ -63,6 +78,8 @@ export function ProfileEditor({ profile, onSave, onBuild, compact = false }: Pro
   });
   const saveRef = useRef(onSave);
   saveRef.current = onSave;
+  const draftRef = useRef(onDraftChange);
+  draftRef.current = onDraftChange;
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   useEffect(() => {
     const invalid = () => !profileSchema.safeParse(getValues()).success;
@@ -94,6 +111,7 @@ export function ProfileEditor({ profile, onSave, onBuild, compact = false }: Pro
   }, [getValues]);
   useEffect(() => {
     const subscription = watch(() => {
+      draftRef.current?.(getValues());
       setStatus('Saving…');
       clearTimeout(timer.current);
       timer.current = setTimeout(() => {
@@ -181,19 +199,19 @@ export function ProfileEditor({ profile, onSave, onBuild, compact = false }: Pro
           <h2>
             {
               [
-                'Let’s start with the basics.',
-                'What do you bring to the table?',
-                'Tell your experience story.',
-                'Where did you learn?',
-                'Show what you’ve built.',
-                'The details that make you, you.',
+                'Personal details',
+                'Professional summary and skills',
+                'Work experience and internships',
+                'Education and training',
+                'Projects',
+                'Additional qualifications',
               ][step]
             }
           </h2>
           <p>
             {
               [
-                'How should employers get to know and contact you?',
+                'Enter the contact details you want employers to see on your resume.',
                 'Add skills you can demonstrate. A short summary helps connect your story.',
                 'Work, internships, or volunteering — describe your actual contribution. It’s okay to skip this if you’re starting out.',
                 'Add degrees, courses, or training. Use a consistent date format, such as Jan 2025.',
@@ -217,6 +235,20 @@ export function ProfileEditor({ profile, onSave, onBuild, compact = false }: Pro
         )}
         {step === 1 && (
           <div className="stack">
+            <div className="inline-ai-prompt">
+              <div>
+                <strong>Write your summary with AI</strong>
+                <p>Use the skills and experience you have already entered.</p>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setAIContext({ action: 'summary' })}
+              >
+                <Sparkles size={16} />
+                Draft summary
+              </Button>
+            </div>
             <label className="field">
               Professional summary
               <textarea
@@ -279,9 +311,65 @@ export function ProfileEditor({ profile, onSave, onBuild, compact = false }: Pro
               register={register}
               errors={errors}
               shown={shown}
+              onAI={(id, action) => {
+                const entry = getValues()[kind].find((e) => e.id === id);
+                setAIContext({
+                  kind,
+                  target: id,
+                  action,
+                  facts: entry
+                    ? [entry.title, entry.organization, entry.description]
+                        .filter(Boolean)
+                        .join('\n')
+                        .slice(0, 6500)
+                    : '',
+                });
+              }}
             />
           );
         })}
+        {aiContext && (
+          <div className="inline-assistant" ref={aiRef}>
+            <div className="section-line">
+              <strong>
+                {aiContext.kind
+                  ? `Writing help · ${sectionLabels[aiContext.kind]}`
+                  : 'Summary writing help'}
+              </strong>
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label="Close writing help"
+                onClick={() => setAIContext(null)}
+              >
+                <X size={18} />
+              </Button>
+            </div>
+            <AIAssistant
+              key={`${aiContext.action}-${aiContext.target || 'summary'}`}
+              profile={getValues()}
+              initialAction={aiContext.action}
+              initialTarget={aiContext.target}
+              initialFacts={aiContext.facts}
+              onAccept={(text, action, target) => {
+                if (action === 'summary' || action === 'tailor') {
+                  setValue('summary', text, { shouldDirty: true, shouldValidate: true });
+                } else {
+                  const kind = aiContext.kind;
+                  if (!kind) return false;
+                  const index = getValues()[kind].findIndex((e) => e.id === target);
+                  if (index < 0) return false;
+                  setValue(`${kind}.${index}.description`, text, {
+                    shouldDirty: true,
+                    shouldValidate: true,
+                  });
+                }
+                const parsed = profileSchema.safeParse(getValues());
+                return parsed.success && onSave(parsed.data);
+              }}
+            />
+          </div>
+        )}
         <div className="form-footer">
           <span className="save-status" aria-live="polite">
             <Check size={14} />
@@ -300,7 +388,11 @@ export function ProfileEditor({ profile, onSave, onBuild, compact = false }: Pro
               </Button>
             )}
             <Button type="submit">
-              {step === 5 ? (onBuild ? 'Build my resume' : 'Save changes') : 'Save & continue'}
+              {step === 5
+                ? onBuild
+                  ? 'Continue to target job'
+                  : 'Save changes'
+                : 'Save & continue'}
             </Button>
           </div>
         </div>
@@ -314,12 +406,14 @@ function EntryList({
   register,
   errors,
   shown,
+  onAI,
 }: {
   kind: EntryKind;
   control: Control<Profile>;
   register: UseFormRegister<Profile>;
   errors: FieldErrors<Profile>;
   shown: boolean;
+  onAI: (id: string, action: AIAction) => void;
 }) {
   const { fields, append, remove, move } = useFieldArray({
     control,
@@ -430,6 +524,17 @@ function EntryList({
               <span className="field-error">{errors[kind]?.[i]?.description?.message}</span>
             )}
           </label>
+          {['experience', 'internships', 'projects'].includes(kind) && (
+            <div className="actions wrap entry-ai-actions">
+              <Button variant="outline" size="sm" onClick={() => onAI(f.id, 'improve-bullets')}>
+                <Sparkles size={15} />
+                Improve these bullets
+              </Button>
+              <Button variant="ghost" size="sm" onClick={() => onAI(f.id, 'interview')}>
+                Help me describe this
+              </Button>
+            </div>
+          )}
         </div>
       ))}
     </section>

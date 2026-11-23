@@ -1,10 +1,7 @@
 import { useEffect, useState } from 'react';
 import {
-  LayoutDashboard,
-  UserRound,
+  House,
   FilePenLine,
-  ScanSearch,
-  Sparkles,
   Files,
   Settings,
   FileText,
@@ -14,126 +11,92 @@ import {
   Menu,
   X,
   ShieldCheck,
-  Check,
-  Layers3,
   Copy,
   Trash2,
-  FolderOpen,
-  CircleHelp,
-  WandSparkles,
-  BriefcaseBusiness,
   Download,
-  ChevronRight,
+  Upload,
+  Sparkles,
+  SearchCheck,
+  ExternalLink,
+  Check,
 } from 'lucide-react';
-import {
-  completeness,
-  createVersion,
-  duplicateVersion,
-  improvements,
-  tailorProfile,
-  profileSchema,
-  type AIAction,
-} from '@gyr/shared';
+import { completeness, duplicateVersion, improvements, type ResumeVersion } from '@gyr/shared';
 import { sampleProfile } from '../../../packages/shared/src/sample';
 import { useWorkspace, download, exportWorkspace } from '@/lib/store';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { ProfileEditor } from '@/features/profile/ProfileEditor';
 import { ImportPanel } from '@/features/profile/ImportPanel';
-import { ResumeBuilder, templates } from '@/features/resume/ResumeBuilder';
-import { JobAnalyzer } from '@/features/jobs/JobAnalyzer';
-import { AIAssistant } from '@/features/ai/AIAssistant';
+import { ResumeWorkflow } from '@/features/resume/ResumeWorkflow';
+import { templates } from '@/features/resume/templates';
+import { creator } from '@/lib/creator';
+import { readRoute, builderLink } from '@/lib/navigation';
 
 const nav = [
-  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { id: 'profile', label: 'My Profile', icon: UserRound },
-  { id: 'builder', label: 'Resume Builder', icon: FilePenLine },
-  { id: 'jobs', label: 'Job Analyzer', icon: ScanSearch },
-  { id: 'ai', label: 'AI Assistant', icon: Sparkles },
+  { id: 'home', label: 'Home', icon: House },
+  { id: 'builder', label: 'Build Resume', icon: FilePenLine },
   { id: 'resumes', label: 'My Resumes', icon: Files },
   { id: 'settings', label: 'Settings', icon: Settings },
-];
-function route() {
-  const id = location.hash.slice(1);
-  return nav.some((n) => n.id === id) ? id : 'dashboard';
-}
+] as const;
 export default function App() {
-  const {
-    data,
-    issue,
-    blocked,
-    raw,
-    commit,
-    setProfile,
-    saveVersion,
-    removeVersion,
-    reset,
-    reload,
-  } = useWorkspace();
-  const [page, setPage] = useState(route);
+  const { data, issue, raw, commit, saveVersion, removeVersion, reset, reload } = useWorkspace();
+  const [route, setRoute] = useState(() => readRoute(location.hash));
   const [mobile, setMobile] = useState(false);
-  const [activeId, setActiveId] = useState<string | null>(null);
   const [notice, setNotice] = useState('');
   const [showImport, setShowImport] = useState(false);
-  const [profileKey, setProfileKey] = useState(0);
-  const active = data.versions.find((v) => v.id === activeId) || data.versions[0];
+  const active =
+    route.resume === 'new'
+      ? undefined
+      : data.versions.find((v) => v.id === route.resume) ||
+        (!route.resume ? data.versions[0] : undefined);
+  const effectiveStage = !active && route.stage === 'design' ? 'details' : route.stage;
   useEffect(() => {
     const handler = () => {
-      setPage(route());
+      const next = readRoute(location.hash);
+      setRoute(next);
       setMobile(false);
-      window.scrollTo({ top: 0 });
+      if (next.creator)
+        requestAnimationFrame(() =>
+          document.getElementById('creator')?.scrollIntoView({ behavior: 'smooth' }),
+        );
+      else window.scrollTo({ top: 0 });
     };
     window.addEventListener('hashchange', handler);
     return () => window.removeEventListener('hashchange', handler);
   }, []);
   useEffect(() => {
     document.documentElement.dataset.theme = data.theme;
-  }, [data.theme]);
-  const go = (id: string) => {
-    location.hash = id;
+    document.body.dataset.page = route.page;
+  }, [data.theme, route.page]);
+  const go = (hash: string) => {
+    location.hash = hash;
     setMobile(false);
   };
-  function build(job = '', role = '') {
-    if (blocked) return;
-    const current = useWorkspace.getState().data;
-    if (!current.profile.personal.name.trim()) {
-      setNotice('Start with your name, then add your experience. We’ll guide you through it.');
-      go('profile');
+  function sample() {
+    if (
+      (data.profile.personal.name || data.versions.length) &&
+      !window.confirm(
+        'Replace this workspace with fictional sample data? A recovery copy will be saved. Export a backup first.',
+      )
+    )
       return;
-    }
-    const version = createVersion(
-      job ? tailorProfile(current.profile, job) : current.profile,
-      role,
-    );
-    if (saveVersion(version)) {
-      setActiveId(version.id);
-      setNotice(
-        'Your resume is ready from your supplied facts. Use the AI tab to refine it when the service is connected.',
+    try {
+      useWorkspace.getState().importData(
+        JSON.stringify({
+          ...data,
+          profile: sampleProfile(),
+          versions: [],
+          job: '',
+          sample: true,
+        }),
       );
-      go('builder');
+      setNotice(
+        'Fictional sample loaded. Enter your own details before using a resume for an application.',
+      );
+    } catch {
+      setNotice('The sample could not be loaded. Existing data has been kept.');
     }
-  }
-  function accept(text: string, action: AIAction, target: string) {
-    if (['analyze', 'interview'].includes(action)) {
-      download(`GetYourResume-${action}.txt`, text, 'text/plain');
-      return true;
-    }
-    const p = structuredClone(data.profile);
-    if (action === 'improve-bullets' || action === 'tone') {
-      for (const key of ['experience', 'internships', 'projects'] as const) {
-        const entry = p[key].find((e) => e.id === target);
-        if (entry) entry.description = text;
-      }
-    } else p.summary = text;
-    const checked = profileSchema.safeParse(p);
-    if (checked.success && setProfile(checked.data)) {
-      setProfileKey((k) => k + 1);
-      setNotice('Suggestion accepted into your master profile. Saved resumes stay separate.');
-      return true;
-    }
-    return false;
   }
   const progress = completeness(data.profile);
+  const newResume = () => go(builderLink(null, 'details'));
   return (
     <div className="app-shell">
       <a
@@ -149,58 +112,45 @@ export default function App() {
       {mobile && (
         <button
           className="sidebar-backdrop"
-          onClick={() => setMobile(false)}
           aria-label="Close navigation"
+          onClick={() => setMobile(false)}
         />
       )}
       <aside className={`sidebar ${mobile ? 'is-open' : ''}`}>
-        <a href="#dashboard" className="brand">
+        <a href="#home" className="brand">
           <span className="brand-mark">
             <FileText size={23} />
           </span>
           <span>
-            GetYour<span className="brand-accent">Resume</span>
-            <small>YOUR NEXT CHAPTER</small>
+            GetYourResume<small>RESUME WORKSPACE</small>
           </span>
         </a>
-        <div className="workspace-label">YOUR WORKSPACE</div>
         <nav aria-label="Main navigation">
-          {nav.map((n) => (
+          {nav.map((item) => (
             <a
-              href={`#${n.id}`}
-              key={n.id}
-              aria-current={page === n.id ? 'page' : undefined}
-              className={page === n.id ? 'active' : ''}
-              onClick={() => setMobile(false)}
+              key={item.id}
+              href={
+                item.id === 'builder'
+                  ? builderLink(
+                      active?.id || data.versions[0]?.id || null,
+                      active || data.versions.length ? 'design' : 'details',
+                    )
+                  : `#${item.id}`
+              }
+              className={route.page === item.id ? 'active' : ''}
+              aria-current={route.page === item.id ? 'page' : undefined}
             >
-              <n.icon size={19} />
-              {n.label}
-              {n.id === 'ai' && <span className="nav-tag">AI</span>}
+              <item.icon size={20} />
+              {item.label}
             </a>
           ))}
         </nav>
         <div className="sidebar-bottom">
           <div className="privacy-mini">
             <ShieldCheck size={20} />
-            <strong>Your story stays yours.</strong>
-            <p>Your workspace lives in this browser. No account needed.</p>
-            <a href="#settings">Privacy & data</a>
-          </div>
-          <div className="sidebar-user">
-            <span className="avatar">
-              {data.profile.personal.name
-                ? data.profile.personal.name
-                    .split(' ')
-                    .map((s) => s[0])
-                    .slice(0, 2)
-                    .join('')
-                    .toUpperCase()
-                : 'YO'}
-            </span>
-            <div>
-              <strong>{data.profile.personal.name || 'Your workspace'}</strong>
-              <small>Personal resume studio</small>
-            </div>
+            <strong>Saved on your device</strong>
+            <p>No account is required. Export a backup to keep a copy.</p>
+            <a href="#settings">Manage your data</a>
           </div>
         </div>
       </aside>
@@ -209,26 +159,26 @@ export default function App() {
           <div className="actions">
             <Button
               className="mobile-menu"
-              variant="ghost"
               size="icon"
+              variant="ghost"
               aria-label="Open navigation"
               onClick={() => setMobile(!mobile)}
             >
-              <Menu size={21} />
+              <Menu size={22} />
             </Button>
-            <span className="breadcrumb">
-              Workspace <ChevronRight size={14} />
-              <strong>{nav.find((n) => n.id === page)?.label}</strong>
-            </span>
+            <div className="header-brand">
+              <strong>GetYourResume</strong>
+              <span>By Pawan Kumar Sharma</span>
+            </div>
           </div>
           <div className="actions">
             <span className="local-status">
-              <ShieldCheck size={14} />
-              Stored on your device
+              <ShieldCheck size={16} />
+              Local workspace
             </span>
             <Button
-              variant="ghost"
               size="icon"
+              variant="ghost"
               aria-label={data.theme === 'light' ? 'Switch to dark theme' : 'Switch to light theme'}
               onClick={() =>
                 commit((d) => ({ ...d, theme: d.theme === 'light' ? 'dark' : 'light' }))
@@ -236,7 +186,9 @@ export default function App() {
             >
               {data.theme === 'light' ? <Moon size={19} /> : <Sun size={19} />}
             </Button>
-            <span className="top-avatar">{data.profile.personal.name?.[0] || 'Y'}</span>
+            <a href="#creator" className="creator-avatar" aria-label="About Pawan Kumar Sharma">
+              <img src={creator.photo} width="36" height="36" alt="" />
+            </a>
           </div>
         </header>
         <main id="main-content" tabIndex={-1}>
@@ -260,408 +212,242 @@ export default function App() {
                 <Button size="sm" variant="outline" onClick={reload}>
                   Reload saved workspace
                 </Button>
-                <Button size="sm" variant="outline" onClick={() => go('settings')}>
-                  Open recovery settings
+                <Button size="sm" variant="outline" onClick={() => go('#settings')}>
+                  Recovery settings
                 </Button>
               </div>
             </div>
           )}
           {data.sample && (
             <div className="sample-notice">
-              Fictional sample workspace · Alex Morgan is demonstration data.{' '}
-              <button onClick={() => go('settings')}>Manage sample data</button>
+              Fictional sample workspace. Replace the demonstration details before applying.{' '}
+              <a href="#settings">Manage data</a>
             </div>
           )}
           {notice && (
             <div className="notice success-notice" role="status">
               <span>{notice}</span>
               <Button
-                variant="ghost"
                 size="icon"
+                variant="ghost"
                 aria-label="Dismiss notification"
                 onClick={() => setNotice('')}
               >
-                <X size={16} />
+                <X size={17} />
               </Button>
             </div>
           )}
-          {page === 'dashboard' && (
+          {route.page === 'home' && (
             <>
               <div className="page-heading">
                 <div>
-                  <div className="eyebrow">A LITTLE CLARITY. A LOT OF POSSIBILITY.</div>
+                  <span className="eyebrow">PERSONAL RESUME WORKSPACE</span>
                   <h1>
                     {data.profile.personal.name
                       ? `Welcome back, ${data.profile.personal.name.split(' ')[0]}.`
-                      : 'Your next chapter starts here.'}
+                      : 'Build your next resume.'}
                   </h1>
-                  <p>Turn what you’ve done into what comes next.</p>
+                  <p>
+                    Organize your experience, refine it with AI, and download a professional PDF.
+                  </p>
                 </div>
-                <Button onClick={() => build()}>
-                  <Plus size={17} />
+                <Button onClick={newResume}>
+                  <Plus size={18} />
                   Create a resume
                 </Button>
               </div>
-              <section className="hero-card">
-                <div className="hero-copy">
-                  <span className="hero-kicker">
+              <div className="home-layout">
+                <section className="card start-card">
+                  <span className="badge">
                     <Sparkles size={15} />
-                    YOUR EXPERIENCE. BEAUTIFULLY PRESENTED.
+                    AI-assisted resume builder
                   </span>
-                  <h2>
-                    A resume that feels
-                    <br />
-                    like <span>you, at your best.</span>
-                  </h2>
+                  <h2>From your experience to a finished resume.</h2>
                   <p>
-                    Tell us your story. We’ll help shape it into a clear, confident resume — ready
-                    for your next opportunity.
+                    Follow a guided workflow with writing help where you need it. Review every
+                    suggestion, choose a clean layout, and download your resume.
                   </p>
                   <div className="actions wrap">
-                    <Button onClick={() => go('profile')}>
-                      {progress ? 'Continue my profile' : 'Let’s build your profile'}
-                      <FilePenLine size={16} />
+                    <Button onClick={newResume}>
+                      {progress ? 'Build from my details' : 'Start building'}
                     </Button>
                     <Button
-                      className="hero-secondary"
-                      variant="ghost"
+                      variant="outline"
                       onClick={() => {
                         setShowImport(true);
-                        go('profile');
+                        go('#settings');
                       }}
                     >
-                      Import an existing resume
+                      <Upload size={17} />
+                      Import existing resume
                     </Button>
                   </div>
-                  <div className="hero-assurances">
+                  <div className="workflow-summary">
                     <span>
-                      <Check size={14} />
-                      Free standard tools
+                      <FilePenLine size={18} />
+                      Enter your details
                     </span>
                     <span>
-                      <Check size={14} />
-                      No account required
+                      <Sparkles size={18} />
+                      Refine with AI
                     </span>
                     <span>
-                      <Check size={14} />
-                      AI when available
+                      <Download size={18} />
+                      Download PDF
                     </span>
                   </div>
-                </div>
-                <div className="hero-art" aria-hidden="true">
-                  <div className="art-orbit" />
-                  <div className="art-resume">
-                    <div className="art-monogram">{data.profile.personal.name?.[0] || 'Y'}</div>
-                    <div className="art-name" />
-                    <div className="art-subtitle" />
-                    <div className="art-divider" />
-                    {[0, 1, 2].map((i) => (
-                      <div className="art-section" key={i}>
-                        <b />
-                        <i />
-                        <i />
-                        <i />
-                      </div>
-                    ))}
+                  <div className="standard-note">
+                    <Check size={17} />
+                    <span>If AI is unavailable, continue with the guided standard builder.</span>
                   </div>
-                  <div className="art-badge">
-                    <ShieldCheck size={19} />
-                    <span>
-                      Built around
-                      <br />
-                      <strong>your real experience</strong>
-                    </span>
+                </section>
+                <section className="card progress-panel">
+                  <div className="section-line">
+                    <h2>Workspace overview</h2>
+                    <ShieldCheck size={20} />
                   </div>
-                  <span className="art-sparkle">✦</span>
-                </div>
-              </section>
-              <div className="stats-grid">
-                <Card className="stat-card">
-                  <span className="stat-icon violet">
-                    <UserRound size={22} />
-                  </span>
-                  <div>
-                    <p>Profile completeness</p>
-                    <strong>
-                      {progress}
-                      <small>%</small>
-                    </strong>
-                    <div className="mini-progress">
-                      <i style={{ width: `${progress}%` }} />
-                    </div>
+                  <div className="overview-row">
+                    <span>Master details</span>
+                    <strong>{progress}% complete</strong>
                   </div>
-                  <button aria-label="Complete your profile" onClick={() => go('profile')}>
-                    <ChevronRight size={20} />
-                  </button>
-                </Card>
-                <Card className="stat-card">
-                  <span className="stat-icon blue">
-                    <Files size={22} />
-                  </span>
-                  <div>
-                    <p>Saved resumes</p>
-                    <strong>{data.versions.length.toString().padStart(2, '0')}</strong>
-                    <small>Each one, a new possibility</small>
+                  <div
+                    className="mini-progress"
+                    aria-label={`Master details ${progress}% complete`}
+                  >
+                    <i style={{ width: `${progress}%` }} />
                   </div>
-                </Card>
-                <Card className="stat-card">
-                  <span className="stat-icon green">
-                    <ScanSearch size={22} />
-                  </span>
-                  <div>
-                    <p>Last analyzed job</p>
-                    <strong className="stat-text">
-                      {data.job ? 'Ready to revisit' : 'Your next match'}
-                    </strong>
-                    <button className="text-link" onClick={() => go('jobs')}>
-                      {data.job ? 'View your analysis' : 'Find how your skills connect'}
-                    </button>
+                  <div className="overview-row">
+                    <span>Saved resumes</span>
+                    <strong>{data.versions.length}</strong>
                   </div>
-                </Card>
+                  <div className="overview-row">
+                    <span>Target job</span>
+                    <strong>{data.job ? 'Saved for analysis' : 'Not added'}</strong>
+                  </div>
+                  <Button variant="outline" onClick={() => go(builderLink(null, 'details'))}>
+                    Edit reusable details
+                  </Button>
+                </section>
               </div>
               <div className="dashboard-columns">
                 <section className="card">
                   <div className="section-line">
                     <div>
-                      <h2>Your resume collection</h2>
-                      <p>A different role deserves a different story.</p>
+                      <h2>Recent resumes</h2>
+                      <p>Continue editing or create a version for another role.</p>
                     </div>
-                    <button className="text-link" onClick={() => go('resumes')}>
+                    <a className="text-link" href="#resumes">
                       View all
-                    </button>
+                    </a>
                   </div>
                   {data.versions.length ? (
                     <div className="recent-list">
                       {data.versions.slice(0, 3).map((v) => (
                         <button
-                          key={v.id}
                           className="recent-item"
-                          onClick={() => {
-                            setActiveId(v.id);
-                            go('builder');
-                          }}
+                          key={v.id}
+                          onClick={() => go(builderLink(v.id, 'design'))}
                         >
                           <span className="file-icon">
-                            <FileText size={24} />
+                            <FileText size={23} />
                           </span>
                           <span>
                             <strong>{v.name}</strong>
                             <small>
-                              {templates[v.template].name} ·{' '}
+                              {templates[v.template].name} · Updated{' '}
                               {new Date(v.updatedAt).toLocaleDateString()}
                             </small>
                           </span>
-                          <ChevronRight size={18} />
+                          <span className="text-link">Open</span>
                         </button>
                       ))}
                     </div>
                   ) : (
                     <div className="collection-empty">
-                      <span className="empty-file">
-                        <FileText size={34} />
-                        <Plus size={15} />
-                      </span>
-                      <h3>Your first resume belongs here.</h3>
-                      <p>Start with a few details. Build something you’re proud to send.</p>
-                      <Button variant="outline" onClick={() => build()}>
-                        <Plus size={16} />
-                        Create my first resume
+                      <FileText size={32} />
+                      <h3>No saved resumes yet</h3>
+                      <p>Complete the guided details to create your first version.</p>
+                      <Button variant="outline" onClick={newResume}>
+                        Create a resume
                       </Button>
                     </div>
                   )}
                 </section>
-                <section className="card next-steps">
-                  <span className="eyebrow">SMALL STEPS, STRONGER STORY</span>
-                  <h2>Make your next move.</h2>
-                  {[
-                    {
-                      title: 'Bring your profile to life',
-                      text: 'Your skills, projects, and experience in one place.',
-                      icon: UserRound,
-                      page: 'profile',
-                    },
-                    {
-                      title: 'Find the fit',
-                      text: 'See how your story connects to a job.',
-                      icon: ScanSearch,
-                      page: 'jobs',
-                    },
-                    {
-                      title: 'Find the right words',
-                      text: 'AI writing help, with you in control.',
-                      icon: Sparkles,
-                      page: 'ai',
-                    },
-                  ].map((item) => (
-                    <button className="next-step" key={item.title} onClick={() => go(item.page)}>
-                      <span className="step-icon">
-                        <item.icon size={19} />
-                      </span>
-                      <span>
-                        <strong>{item.title}</strong>
-                        <small>{item.text}</small>
-                      </span>
-                      <ChevronRight size={17} />
-                    </button>
-                  ))}
-                </section>
-              </div>
-              <div className="dashboard-columns bottom-columns">
                 <section className="card">
-                  <div className="section-line">
-                    <h3>
-                      <WandSparkles size={18} />A little room to grow
-                    </h3>
-                    <span className="badge">Based on your profile</span>
-                  </div>
+                  <h2>Suggested next steps</h2>
                   <ul className="checklist">
                     {(improvements(data.profile).length
                       ? improvements(data.profile)
-                      : [
-                          'Your core profile is complete. Review your facts and tailor a version for your next application.',
-                        ]
+                      : ['Review your details and tailor a resume for the role you want.']
                     )
                       .slice(0, 3)
                       .map((s) => (
                         <li key={s}>
-                          <span />
-                          <span>{s}</span>
+                          <span className="checklist-dot" />
+                          {s}
                         </li>
                       ))}
                   </ul>
-                </section>
-                <section className="sample-card">
-                  <span className="icon-tile">
-                    <FolderOpen size={21} />
-                  </span>
-                  <div>
-                    <h3>Just looking around?</h3>
-                    <p>Explore with a clearly labeled fictional sample.</p>
-                    <button
-                      className="text-link"
-                      onClick={() => {
-                        if (data.profile.personal.name || data.versions.length) {
-                          if (
-                            !window.confirm(
-                              'Replace this workspace with fictional sample data? A recovery copy will be saved. Export a backup first.',
-                            )
-                          )
-                            return;
-                        }
-                        try {
-                          useWorkspace
-                            .getState()
-                            .importData(
-                              JSON.stringify({
-                                ...data,
-                                profile: sampleProfile(),
-                                versions: [],
-                                job: '',
-                                sample: true,
-                              }),
-                            );
-                          setProfileKey((k) => k + 1);
-                          setNotice(
-                            'Fictional sample loaded. Replace these details with your own before applying.',
-                          );
-                        } catch {
-                          setNotice('Sample could not be loaded. Your data has been kept.');
-                        }
-                      }}
+                  <div className="quick-action">
+                    <SearchCheck size={20} />
+                    <div>
+                      <strong>Compare with a target job</strong>
+                      <p>Get an explained estimate of skill alignment.</p>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() =>
+                        go(builderLink(active?.id || data.versions[0]?.id || null, 'job'))
+                      }
                     >
-                      Explore sample workspace
-                    </button>
+                      Analyze
+                    </Button>
                   </div>
                 </section>
               </div>
-            </>
-          )}
-          {page === 'profile' && (
-            <>
-              <PageHeading
-                eyebrow="THE FOUNDATION OF EVERY RESUME"
-                title="Your story, in one place."
-                description="Answer a few focused questions. We’ll turn your details into a resume you can make your own."
-              />
-              <div className="profile-top">
-                <span className="badge">
-                  <ShieldCheck size={14} />
-                  Saved on this device
-                </span>
-                <Button variant="outline" size="sm" onClick={() => setShowImport(!showImport)}>
-                  {showImport ? 'Close import tools' : 'Import / export'}
-                </Button>
-              </div>
-              {showImport && (
-                <div className="card import-panel">
-                  <ImportPanel />
+              <section className="sample-card">
+                <div>
+                  <h3>Try the workflow with sample data</h3>
+                  <p>The demonstration profile is fictional and clearly labeled.</p>
                 </div>
-              )}
-              <div className="card profile-card">
-                {!blocked ? (
-                  <ProfileEditor
-                    key={profileKey}
-                    profile={data.profile}
-                    onSave={setProfile}
-                    onBuild={() => build()}
-                  />
-                ) : (
-                  <p>Resolve the storage issue above before editing.</p>
-                )}
-              </div>
+                <Button variant="outline" onClick={sample}>
+                  Load sample profile
+                </Button>
+              </section>
             </>
           )}
-          {page === 'builder' && (
+          {route.page === 'builder' && (
             <>
               <PageHeading
-                eyebrow="GIVE YOUR EXPERIENCE A LITTLE STRUCTURE"
-                title="Your resume, your way."
-                description="Shape the details, choose a template, and make your next impression."
+                title="Build your resume"
+                description="Complete your details, use AI to refine the wording, then review and download."
               />
-              {active ? (
-                <ResumeBuilder key={active.id} version={active} />
+              {route.resume && route.resume !== 'new' && !active ? (
+                <div className="card stack">
+                  <h2>This saved version is no longer available</h2>
+                  <p>Your other versions and master details are still available.</p>
+                  <Button onClick={newResume}>Start a new resume</Button>
+                </div>
               ) : (
-                <Empty
-                  icon={FilePenLine}
-                  title="Let’s make your first resume."
-                  text="Start with your profile. The guided questions help you collect the details, and we’ll assemble them into a professional layout."
-                  button="Start building"
-                  onClick={() => build()}
+                <ResumeWorkflow
+                  key={active?.id || 'new'}
+                  version={active}
+                  stage={effectiveStage}
+                  onNavigate={(step) => go(builderLink(active?.id || null, step))}
+                  onCreated={(id, step) => go(builderLink(id, step))}
                 />
               )}
             </>
           )}
-          {page === 'jobs' && (
+          {route.page === 'resumes' && (
             <>
               <PageHeading
-                eyebrow="LESS GUESSWORK. MORE DIRECTION."
-                title="Find the connection."
-                description="Understand the fit before you hit apply. Clear evidence, honest gaps, and practical next steps."
-              />
-              <JobAnalyzer profile={data.profile} onTailor={build} />
-            </>
-          )}
-          {page === 'ai' && (
-            <>
-              <PageHeading
-                eyebrow="YOUR WRITING PARTNER"
-                title="Good experience. Better words."
-                description="AI helps you express what you’ve done. You decide what makes it onto your resume."
-              />
-              <div className="card ai-page">
-                <AIAssistant profile={data.profile} onAccept={accept} />
-              </div>
-            </>
-          )}
-          {page === 'resumes' && (
-            <>
-              <PageHeading
-                eyebrow="READY FOR YOUR NEXT OPPORTUNITY"
-                title="Your resume collection."
-                description="One master profile. A considered version for every role."
+                title="My resumes"
+                description="Independent versions for different roles. Editing a version does not change your master details."
                 action={
-                  <Button onClick={() => build()}>
-                    <Plus size={17} />
+                  <Button onClick={newResume}>
+                    <Plus size={18} />
                     New resume
                   </Button>
                 }
@@ -669,94 +455,57 @@ export default function App() {
               {data.versions.length ? (
                 <div className="resume-grid">
                   {data.versions.map((v) => (
-                    <Card key={v.id} className="version-card">
-                      <div
-                        className={`version-illustration illustration-${v.template}`}
-                        aria-hidden="true"
-                      >
-                        <div>
-                          <b />
-                          {Array.from({ length: 8 }, (_, i) => (
-                            <i key={i} />
-                          ))}
-                        </div>
-                      </div>
-                      <div className="version-info">
-                        <span className="badge">{templates[v.template].name}</span>
-                        <h2>{v.name}</h2>
-                        <p>
-                          {[v.role, v.company].filter(Boolean).join(' · ') ||
-                            'General professional resume'}
-                        </p>
-                        <small>Updated {new Date(v.updatedAt).toLocaleString()}</small>
-                        <div className="actions">
-                          <Button
-                            onClick={() => {
-                              setActiveId(v.id);
-                              go('builder');
-                            }}
-                          >
-                            Edit resume
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            aria-label={`Duplicate ${v.name}`}
-                            onClick={() => saveVersion(duplicateVersion(v))}
-                          >
-                            <Copy size={16} />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            aria-label={`Delete ${v.name}`}
-                            onClick={() => {
-                              if (
-                                window.confirm(
-                                  `Delete “${v.name}”? Your master profile will stay saved.`,
-                                )
-                              )
-                                removeVersion(v.id);
-                            }}
-                          >
-                            <Trash2 size={16} />
-                          </Button>
-                        </div>
-                      </div>
-                    </Card>
+                    <ResumeCard
+                      key={v.id}
+                      version={v}
+                      onEdit={() => go(builderLink(v.id, 'design'))}
+                      onDuplicate={() => {
+                        if (saveVersion(duplicateVersion(v)))
+                          setNotice(
+                            'Resume duplicated. Edit its name or tailor it for another application.',
+                          );
+                      }}
+                      onDelete={() => {
+                        if (
+                          window.confirm(`Delete “${v.name}”? Your master details will stay saved.`)
+                        )
+                          removeVersion(v.id);
+                      }}
+                    />
                   ))}
                 </div>
               ) : (
-                <Empty
-                  icon={Files}
-                  title="A fresh start for your next role."
-                  text="Create a resume from your profile, then duplicate and tailor it for each opportunity."
-                  button="Create a resume"
-                  onClick={() => build()}
-                />
+                <div className="card full-empty">
+                  <Files size={36} />
+                  <h2>No saved resumes yet</h2>
+                  <p>
+                    Build a resume from your details, then save separate versions for each
+                    application.
+                  </p>
+                  <Button onClick={newResume}>Create a resume</Button>
+                </div>
               )}
             </>
           )}
-          {page === 'settings' && (
+          {route.page === 'settings' && (
             <>
               <PageHeading
-                eyebrow="YOUR WORKSPACE. YOUR CHOICES."
-                title="Make yourself at home."
-                description="Manage your preferences, privacy, and the data you keep on this device."
+                title="Settings"
+                description="Manage appearance, AI access, backups, and the information stored on this device."
               />
               <div className="settings-grid">
                 <div className="stack">
-                  <Card>
-                    <h2>Appearance & AI</h2>
+                  <section className="card">
+                    <h2>Preferences</h2>
                     <div className="setting-row">
                       <div>
                         <strong>Dark theme</strong>
-                        <p>Choose the view that feels comfortable.</p>
+                        <p>Use a darker workspace. Resumes remain black on white.</p>
                       </div>
                       <input
-                        aria-label="Dark theme"
                         type="checkbox"
                         role="switch"
+                        aria-label="Dark theme"
                         checked={data.theme === 'dark'}
                         onChange={(e) =>
                           commit((d) => ({ ...d, theme: e.target.checked ? 'dark' : 'light' }))
@@ -766,103 +515,102 @@ export default function App() {
                     <div className="setting-row">
                       <div>
                         <strong>AI assistance</strong>
-                        <p>Enable manual requests to the configured Cloudflare service.</p>
+                        <p>Allow manual writing requests to the Cloudflare service.</p>
                       </div>
                       <input
-                        aria-label="AI assistance"
                         type="checkbox"
                         role="switch"
+                        aria-label="AI assistance"
                         checked={data.aiEnabled}
                         onChange={(e) => commit((d) => ({ ...d, aiEnabled: e.target.checked }))}
                       />
                     </div>
-                    <p className="notice">
+                    <p className="notice mt">
                       {import.meta.env.VITE_API_URL
-                        ? 'An AI endpoint is configured. Availability depends on its setup and free allocation.'
-                        : 'AI is not connected yet. The guided builder and job analyzer are ready without it.'}
+                        ? 'An AI service is configured. Requests need your consent and successful human verification.'
+                        : 'AI is not connected in this build. The standard guided workflow remains available.'}
                     </p>
-                  </Card>
-                  <Card>
-                    <ImportPanel />
-                  </Card>
+                  </section>
+                  <section className="card" id="import-tools">
+                    <button
+                      className="section-toggle"
+                      onClick={() => setShowImport(!showImport)}
+                      aria-expanded={showImport}
+                    >
+                      <h2>Import and export</h2>
+                      <span>{showImport ? 'Hide' : 'Open'}</span>
+                    </button>
+                    {showImport ? (
+                      <div className="mt">
+                        <ImportPanel />
+                      </div>
+                    ) : (
+                      <p className="mt">
+                        Restore JSON backups or extract text from PDF and DOCX files.
+                      </p>
+                    )}
+                  </section>
                 </div>
                 <div className="stack">
-                  <Card className="privacy-card">
-                    <ShieldCheck size={28} />
-                    <h2>Private by design.</h2>
+                  <section className="card privacy-card">
+                    <ShieldCheck size={27} />
+                    <h2>Your data and privacy</h2>
                     <p>
-                      Your master profile, jobs, and resumes stay in this browser’s localStorage. No
-                      account or database is used.
+                      Career details, resumes, and jobs are kept in this browser’s localStorage.
+                      There is no account or remote resume database.
                     </p>
                     <p>
-                      localStorage is not encrypted. Other people using this browser, browser
-                      extensions, or scripts on the same origin may be able to access it. Clearing
-                      browser data can remove your workspace.
+                      Browser storage is not encrypted and can be lost if browser data is cleared.
+                      Download backups regularly.
                     </p>
                     <p>
-                      Only reviewed facts and relevant job text are sent to Cloudflare when you
-                      explicitly request AI. Enabling human verification contacts Cloudflare. There
-                      are no analytics or advertising trackers.
+                      Only facts you review and relevant job text are sent to Cloudflare when you
+                      request AI. Human verification also contacts Cloudflare. No analytics or
+                      advertising trackers are included.
                     </p>
                     <Button variant="outline" onClick={exportWorkspace}>
-                      <Download size={16} />
+                      <Download size={17} />
                       Download my data
                     </Button>
-                  </Card>
-                  <Card className="danger-zone">
-                    <h3>Clear this device’s data</h3>
+                  </section>
+                  <section className="card danger-zone">
+                    <h2>Delete local data</h2>
                     <p>
-                      Deletes the master profile, resumes, jobs, preferences, and recovery copy
-                      stored by this app. Export a backup before continuing.
+                      This deletes master details, resumes, jobs, preferences, and the recovery copy
+                      in this browser. Export a backup first.
                     </p>
                     <Button
                       variant="destructive"
                       onClick={() => {
                         if (
                           window.confirm(
-                            'Permanently clear all GetYourResume data in this browser? This includes your recovery copy.',
+                            'Permanently clear all GetYourResume data in this browser, including the recovery copy?',
                           )
                         ) {
                           try {
                             reset();
-                            setActiveId(null);
-                            setProfileKey((k) => k + 1);
                             setNotice('Local workspace cleared.');
                           } catch {
                             setNotice(
-                              'Browser storage could not be cleared. Check your browser permissions.',
+                              'Unable to clear browser storage. Check browser permissions.',
                             );
                           }
                         }
                       }}
                     >
-                      <Trash2 size={16} />
+                      <Trash2 size={17} />
                       Delete local data
                     </Button>
-                  </Card>
-                  <Card>
-                    <h3>
-                      <CircleHelp size={18} />A few honest limits
-                    </h3>
-                    <p>
-                      Compatibility is an estimate based on skill evidence, not an ATS score. PDF
-                      pagination can vary by browser. AI has a shared free allowance and can make
-                      factual mistakes.
-                    </p>
-                    <p>Your resume is always yours to review.</p>
-                  </Card>
+                  </section>
                 </div>
               </div>
             </>
           )}
           <footer className="app-footer">
-            <span>
-              GetYourResume <span className="footer-separator">/</span> Made for your next chapter.
-            </span>
-            <span>
-              <BriefcaseBusiness size={13} />
-              Real experience. Thoughtfully presented.
-            </span>
+            <span>GetYourResume · Your personal resume workspace</span>
+            <div className="actions">
+              <a href="#creator">A note from the creator</a>
+            </div>
           </footer>
         </main>
       </div>
@@ -870,12 +618,10 @@ export default function App() {
   );
 }
 function PageHeading({
-  eyebrow,
   title,
   description,
   action,
 }: {
-  eyebrow: string;
   title: string;
   description: string;
   action?: React.ReactNode;
@@ -883,7 +629,6 @@ function PageHeading({
   return (
     <div className="page-heading">
       <div>
-        <span className="eyebrow">{eyebrow}</span>
         <h1>{title}</h1>
         <p>{description}</p>
       </div>
@@ -891,27 +636,45 @@ function PageHeading({
     </div>
   );
 }
-function Empty({
-  icon: Icon,
-  title,
-  text,
-  button,
-  onClick,
+function ResumeCard({
+  version: v,
+  onEdit,
+  onDuplicate,
+  onDelete,
 }: {
-  icon: typeof Layers3;
-  title: string;
-  text: string;
-  button: string;
-  onClick: () => void;
+  version: ResumeVersion;
+  onEdit: () => void;
+  onDuplicate: () => void;
+  onDelete: () => void;
 }) {
   return (
-    <div className="card full-empty">
-      <span className="empty-file">
-        <Icon size={38} />
-      </span>
-      <h2>{title}</h2>
-      <p>{text}</p>
-      <Button onClick={onClick}>{button}</Button>
-    </div>
+    <section className="card version-card">
+      <div className="version-heading">
+        <FileText size={27} />
+        <span className="badge">{v.paper}</span>
+      </div>
+      <h2>{v.name}</h2>
+      <p>{[v.role, v.company].filter(Boolean).join(' · ') || 'General professional resume'}</p>
+      <p className="caption">
+        {templates[v.template].name} · Updated {new Date(v.updatedAt).toLocaleDateString()}
+      </p>
+      <div className="actions">
+        <Button onClick={onEdit}>
+          Open resume
+          <ExternalLink size={15} />
+        </Button>
+        <Button
+          variant="outline"
+          size="icon"
+          aria-label={`Duplicate ${v.name}`}
+          onClick={onDuplicate}
+        >
+          <Copy size={17} />
+        </Button>
+        <Button variant="ghost" size="icon" aria-label={`Delete ${v.name}`} onClick={onDelete}>
+          <Trash2 size={17} />
+        </Button>
+      </div>
+    </section>
   );
 }

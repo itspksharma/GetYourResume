@@ -14,7 +14,7 @@ npm ci
 npm run dev
 ```
 
-Open **http://127.0.0.1:5188**. Start with **My Profile**. The app asks about your background in six focused steps. Enter your actual details and choose **Build my resume**. In Resume Builder, use **AI** for hosted writing assistance when configured. If AI is disconnected, disabled, overloaded, or unavailable, the standard builder still assembles a resume from supplied facts. You can edit everything before applying.
+Open **http://127.0.0.1:5188**. Choose **Build Resume**. The four stages are **Your details → Target job → AI & review → Design & download**. Your details include six focused groups of questions. Summary, work, internship, and project fields include contextual AI writing help and interview questions. Suggestions are reviewed and explicitly accepted; manual answers can be saved verbatim to the selected entry. If AI is disconnected, disabled, overloaded, or unavailable, the same workflow continues with the standard builder. The main menu contains only Home, Build Resume, My Resumes, and Settings.
 
 Port 5188 is intentionally used to avoid common development-server conflicts. `.npmrc` uses the legacy peer resolver because npm 10's resolver crashed while exploring optional Vitest peers; required testing peers are declared explicitly. `package-lock.json` pins the resolved installation.
 
@@ -22,7 +22,7 @@ Port 5188 is intentionally used to avoid common development-server conflicts. `.
 
 - A complete master career profile: contact details, summary, objective, technical and soft skills, work, internships, education, projects, certifications, achievements, awards, languages, and links.
 - Add, edit, remove, and reorder entries; debounced validated local saving; clear validation and storage errors.
-- Three single-column templates: **ATS Classic**, **Modern Professional**, **Developer Portfolio**. Live preview, section visibility and order, A4/US Letter, selectable-text printing.
+- Three black-text, single-column templates: **ATS Classic**, **Modern Professional**, **Developer Portfolio**. Content preview, section visibility/order, A4/US Letter, and direct selectable-text PDF download.
 - Version snapshots with independent content, target role/company, renaming, duplication, deletion, and modification dates.
 - On-device deterministic analysis with matched/missing evidence, preferred skills, relevant experience/projects, manual-verification requirements, domain context, and explained scoring.
 - Hosted AI operations for summary writing, bullet improvement, job tailoring, gap explanation, tone, and career interview questions. Review/edit/accept/reject; no automatic overwrite.
@@ -42,7 +42,7 @@ flowchart LR
   User[Guided questions] --> Web[React / Vite frontend]
   Web --> Local[Versioned localStorage]
   Web --> Rules[Deterministic matching and assembly]
-  Web --> Print[Browser PDF printing]
+  Web --> Print[Client-side PDF renderer and embedded fonts]
   Web -->|Reviewed facts + Turnstile token over HTTPS| Worker[Cloudflare Worker]
   Worker --> Verify[Turnstile Siteverify]
   Worker --> Limits[Approximate per-location rate limits]
@@ -55,7 +55,7 @@ flowchart LR
 apps/web/                  React application and Vite configuration
   src/components/ui/       shadcn-style owned Button/Card primitives
   src/features/profile/    Guided form, JSON restore, document text extraction
-  src/features/resume/     Version editor, templates, print document
+  src/features/resume/     Guided workflow, version editor, templates, PDF renderer
   src/features/jobs/       Job analyzer interface
   src/features/ai/         Manual AI request and review interface
   src/lib/                 Safe storage and utilities
@@ -155,9 +155,34 @@ npx playwright install chromium
 npm run test:e2e
 ```
 
-`check` runs strict type checking, lint, Vitest/React Testing Library, then the production build. Browser tests use an isolated context and test profile creation/editing, automatic assembly, job matching, tailoring, template switching, print triggering, restoration, AI unavailability, mobile navigation/theme, export, and corrupt-data recovery. Worker tests mock the provider and Siteverify; they do not prove live inference works. For an installed Chrome on Windows: `$env:PLAYWRIGHT_CHANNEL='chrome'; npm run test:e2e`.
+`check` runs strict type checking, lint, Vitest/React Testing Library, then the production build. Browser tests start an isolated server on **5199** with a fake AI endpoint and public test key, leaving local development on 5188 untouched. Test-only request interception simulates AI/Turnstile and does not spend real AI allocation. Tests exercise inline AI review, guided details, matching/tailoring, version isolation, legacy links, direct downloads, JSON restore, mobile theme/navigation, and corrupt-data recovery. All three actual downloaded PDFs are parsed for text continuity, embedded fonts, absence of app/creator branding and images, and correct A4/Letter dimensions. Worker tests also mock the provider and Siteverify; tests do not prove live inference works. For installed Chrome on Windows: `$env:PLAYWRIGHT_CHANNEL='chrome'; npm run test:e2e`.
 
-No ATS acceptance, exact pagination across browsers, AI factual accuracy, performance metrics, or coverage percentage is claimed. Print preview is the final check before sending a resume. Use the selected paper size, 100% scale, and disable browser print headers/footers. CSS avoids splitting bullets and keeps headings with following content; long entries can continue across pages.
+No ATS acceptance, AI factual accuracy, performance metrics, or coverage percentage is claimed. Open the downloaded PDF and check every page before applying. The HTML preview shows content and typography; the PDF renderer applies the final page breaks. Long entries and paragraphs can continue across pages.
+
+## Resume typography and direct PDF export
+
+The application uses a neutral workspace interface with a consistent sans-serif UI. Resume templates use black text on white paper. **ATS Classic** uses bundled Liberation Serif, a Times New Roman-compatible font; **Modern Professional** and **Developer Portfolio** use Liberation Sans, an Arial-compatible font. These are redistributable equivalents, not copies of proprietary Microsoft font files. The font license and source are included in `apps/web/public/fonts/`. The same files are used by the browser preview and the PDF renderer. Typical body size is 11 pt; the PDF has 48 pt margins, and paper size is selected separately.
+
+`pdf-lib` with `@pdf-lib/fontkit` is loaded on demand for PDF download, keeps text selectable, embeds the fonts, and handles pagination on-device. Nothing is uploaded for PDF creation. Downloads do not use browser printing, so browser-added page titles, dates, page numbers, and URLs cannot appear. Creator branding and the creator photo are outside the resume renderer. User-provided employment dates, qualifications, and links are preserved. PDF metadata uses the candidate's name. First download loads the renderer and font assets; subsequent downloads can reuse cached assets. The current bundled fonts primarily cover Latin-based text and are not a complete international-script font system.
+
+## Creator identity, SEO, and AI discoverability
+
+The public initial HTML includes **GetYourResume — By Pawan Kumar Sharma**, the supplied creator portrait, a Web Developer creator description, LinkedIn/GitHub links, and factual product/privacy FAQs. Title/description, canonical URL, social-preview metadata, and a JSON-LD Person/WebSite/WebApplication graph describe the creator and application. They never use visitor resume content. The home page remains readable to crawlers without running the resume editor.
+
+The canonical URL, sitemap, and public summaries currently target `https://itspksharma.github.io/GetYourResume/`. If hosting changes, update these public references. Submit `https://itspksharma.github.io/GetYourResume/sitemap.xml` using a URL-prefix property in Google Search Console after deployment. `llms.txt` provides an optional concise factual summary; it is not a search requirement or a promise of AI citations. Google's AI search guidance relies on the same fundamental SEO practices; no rankings or AI-answer inclusion are guaranteed. No fabricated endorsements, metrics, credentials, or geographic claims are included.
+
+On GitHub project Pages, an effective `robots.txt` must be served from the **origin root**, `https://itspksharma.github.io/robots.txt`, which is controlled by the root `itspksharma.github.io` repository. This project does not pretend that `/GetYourResume/robots.txt` controls crawlers, and it does not modify other repositories. Hash workspace routes are not listed as separate sitemap pages. Existing `#profile`, `#jobs`, `#ai`, `#dashboard`, and `#builder` links remain compatible with the unified workflow; selected resume IDs and workflow steps are restored through hash query parameters.
+
+## Roadmap
+
+- Optional PWA installation and carefully scoped offline asset caching.
+- Broader script/font coverage and more PDF accessibility checks.
+- More domain vocabularies and richer evidence matching.
+- Native Flutter clients only if needed; no cross-device synchronization is implied by the present database-free design.
+
+## License
+
+Application source is MIT licensed; see `LICENSE`. Bundled Liberation fonts use SIL OFL 1.1; see their included license. The supplied creator portrait is a personal branding asset, not a generic stock image for reuse in other projects.
 
 ## Roadmap
 

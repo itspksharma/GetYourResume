@@ -3,16 +3,166 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#4f46e5" />
+    <meta name="theme-color" content="#1d4ed8" />
     <meta
       name="description"
-      content="Your experience, beautifully presented. Build and tailor your resume with guided questions, explainable job matching, and AI assistance."
+      content="GetYourResume by Pawan Kumar Sharma, Web Developer. Build and tailor a professional resume with guided questions, AI assistance, job matching, and clean PDF downloads."
     />
-    <title>GetYourResume — Your next chapter starts here</title>
-    <link rel="icon" type="image/svg+xml" href="%BASE_URL%favicon.svg" />
+    <title>GetYourResume — AI Resume Builder by Pawan Kumar Sharma</title>
+    <meta name="author" content="Pawan Kumar Sharma" />
+    <meta name="robots" content="index,follow,max-image-preview:large" />
+    <link rel="canonical" href="https://itspksharma.github.io/GetYourResume/" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="GetYourResume" />
+    <meta property="og:title" content="GetYourResume — By Pawan Kumar Sharma" />
+    <meta
+      property="og:description"
+      content="A professional resume builder with guided details, AI writing assistance, job matching, and clean PDF export. Created by web developer Pawan Kumar Sharma."
+    />
+    <meta property="og:url" content="https://itspksharma.github.io/GetYourResume/" />
+    <meta
+      property="og:image"
+      content="https://itspksharma.github.io/GetYourResume/pawan-kumar-sharma.jpg"
+    />
+    <meta
+      property="og:image:alt"
+      content="Pawan Kumar Sharma, Web Developer and creator of GetYourResume"
+    />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="GetYourResume — By Pawan Kumar Sharma" />
+    <meta
+      name="twitter:description"
+      content="Create, tailor, and download a professional resume. AI assistance with a guided standard fallback."
+    />
+    <meta
+      name="twitter:image"
+      content="https://itspksharma.github.io/GetYourResume/pawan-kumar-sharma.jpg"
+    />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "Person",
+            "@id": "https://itspksharma.github.io/GetYourResume/#pawan-kumar-sharma",
+            "name": "Pawan Kumar Sharma",
+            "jobTitle": "Web Developer",
+            "url": "https://github.com/itspksharma",
+            "image": "https://itspksharma.github.io/GetYourResume/pawan-kumar-sharma.jpg",
+            "sameAs": [
+              "https://www.linkedin.com/in/itspksharma98/",
+              "https://github.com/itspksharma"
+            ]
+          },
+          {
+            "@type": "WebSite",
+            "@id": "https://itspksharma.github.io/GetYourResume/#website",
+            "name": "GetYourResume",
+            "url": "https://itspksharma.github.io/GetYourResume/",
+            "publisher": {
+              "@id": "https://itspksharma.github.io/GetYourResume/#pawan-kumar-sharma"
+            }
+          },
+          {
+            "@type": "WebApplication",
+            "@id": "https://itspksharma.github.io/GetYourResume/#application",
+            "name": "GetYourResume",
+            "url": "https://itspksharma.github.io/GetYourResume/",
+            "applicationCategory": "BusinessApplication",
+            "operatingSystem": "Web",
+            "isAccessibleForFree": true,
+            "description": "A browser-based resume builder with guided career details, reviewed AI suggestions, explainable job matching, and selectable-text PDF export.",
+            "author": { "@id": "https://itspksharma.github.io/GetYourResume/#pawan-kumar-sharma" }
+          }
+        ]
+      }
+    </script>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   </head>
   <body>
     <div id="root"></div>
+    <section class="public-content" aria-label="About GetYourResume">
+      <div class="public-inner">
+        <section id="creator" class="creator-section" aria-labelledby="creator-heading">
+          <img
+            src="/pawan-kumar-sharma.jpg"
+            width="100"
+            height="100"
+            loading="lazy"
+            alt="Pawan Kumar Sharma, creator of GetYourResume"
+          />
+          <div>
+            <span class="eyebrow">A NOTE FROM THE CREATOR</span>
+            <h2 id="creator-heading">Best of luck with your next chapter.</h2>
+            <p>
+              Whether you’re preparing for your first role or bringing years of experience to a new
+              opportunity, I hope this tool makes your next step a little easier. Best of luck with
+              your applications and the journey ahead.
+            </p>
+            <p class="creator-signature">— Pawan</p>
+            <div class="creator-links">
+              <a
+                href="https://www.linkedin.com/in/itspksharma98/"
+                target="_blank"
+                rel="noopener noreferrer"
+                >LinkedIn</a
+              ><a href="https://github.com/itspksharma" target="_blank" rel="noopener noreferrer"
+                >GitHub</a
+              >
+            </div>
+          </div>
+        </section>
+        <section class="public-faq" aria-labelledby="faq-heading">
+          <div class="faq-heading">
+            <span class="eyebrow">HELP & INFORMATION</span>
+            <h2 id="faq-heading">Questions, answered.</h2>
+            <p>A few practical things to know before you apply.</p>
+          </div>
+          <details>
+            <summary>How does GetYourResume build a resume?</summary>
+            <p>
+              Enter your contact information, skills, education, work experience, and projects
+              through guided questions. Add a target job if useful, review AI suggestions or edit
+              manually, then choose a template and download your PDF.
+            </p>
+          </details>
+          <details>
+            <summary>Can I continue without AI?</summary>
+            <p>
+              Yes. Resume assembly, manual editing, job matching, version management, and PDF
+              download work without an AI request. Hosted AI depends on Cloudflare availability and
+              its shared free allocation.
+            </p>
+          </details>
+          <details>
+            <summary>Where is my resume information stored?</summary>
+            <p>
+              Your workspace stays in this browser’s localStorage. It is not encrypted and can be
+              lost if browser data is cleared. Use JSON export for backups. Only the facts you
+              review and relevant job text are sent to Cloudflare when you request AI assistance.
+            </p>
+          </details>
+          <details>
+            <summary>What do the PDF templates include?</summary>
+            <p>
+              Three single-column layouts use black text, standard headings, and selectable text.
+              ATS Classic uses Times-compatible Liberation Serif. Modern Professional and Developer
+              Portfolio use Arial-compatible Liberation Sans. Downloads do not include site
+              branding, browser headers, print dates, or page numbers. User-entered dates and links
+              are preserved.
+            </p>
+          </details>
+          <details>
+            <summary>Does a compatibility score predict hiring or ATS acceptance?</summary>
+            <p>
+              No. It is an explained comparison of recognized job skill requirements with text
+              evidence in your profile. It is not an official ATS score, a proficiency assessment,
+              or a hiring prediction. Follow the employer’s format and application instructions.
+            </p>
+          </details>
+        </section>
+      </div>
+    </section>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

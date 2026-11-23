@@ -4,7 +4,7 @@ export default defineConfig({
   fullyParallel: false,
   workers: 1,
   reporter: 'list',
-  use: { baseURL: 'http://127.0.0.1:5188', trace: 'retain-on-failure' },
+  use: { baseURL: 'http://127.0.0.1:5199', trace: 'retain-on-failure' },
   projects: [
     {
       name: 'chromium',
@@ -15,9 +15,14 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'npm run dev',
-    url: 'http://127.0.0.1:5188',
-    reuseExistingServer: !process.env.CI,
+    command: 'npm run dev -w @gyr/web -- --port 5199',
+    url: 'http://127.0.0.1:5199',
+    reuseExistingServer: false,
     timeout: 60000,
+    env: {
+      VITE_API_URL: 'https://api.getyourresume.test',
+      VITE_TURNSTILE_SITE_KEY: 'public-test-site-key',
+      VITE_BASE_PATH: '/',
+    },
   },
 });
