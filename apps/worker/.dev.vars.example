@@ -1,0 +1,8 @@
+# LOCAL WORKER DEVELOPMENT ONLY. Copy this file to .dev.vars.
+# Paste your PRIVATE Turnstile secret after the equals sign, with no spaces.
+TURNSTILE_SECRET=
+# Keep this secret out of VITE_* variables and wrangler.jsonc.
+# AI remains disabled by default in wrangler.jsonc until setup is complete.
+# For local testing, allow localhost/127.0.0.1 in your Turnstile widget.
+# Deployment does NOT upload .dev.vars. Store the production secret using:
+# npx wrangler secret put TURNSTILE_SECRET --config apps/worker/wrangler.jsonc
