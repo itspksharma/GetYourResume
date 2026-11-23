@@ -4,12 +4,14 @@ Your experience, thoughtfully presented. A personal resume studio with guided pr
 
 Built for an individual to create a real resume and showcase the engineering behind it. No database, subscriptions, or paid API dependencies. There is no fabricated AI in the application.
 
+> **Using GetYourResume?** Please [star ⭐ this repository](https://github.com/itspksharma/GetYourResume) and [fork it to build your version](https://github.com/itspksharma/GetYourResume/fork). Starring and forking are voluntary ways to support the project. When reusing the code, retain the original copyright notice crediting **Pawan Kumar Sharma** and the [MIT license](LICENSE), as required by that license.
+
 ## Run locally
 
 Requires Node.js **22.13+** (22 LTS recommended) and npm.
 
 ```powershell
-cd D:\Projects_Pro\GetYourResume
+cd D:\Projects\GetYourResume
 npm ci
 npm run dev
 ```
@@ -182,7 +184,7 @@ On GitHub project Pages, an effective `robots.txt` must be served from the **ori
 
 ## License
 
-Application source is MIT licensed; see `LICENSE`. Bundled Liberation fonts use SIL OFL 1.1; see their included license. The supplied creator portrait is a personal branding asset, not a generic stock image for reuse in other projects.
+Application source is [MIT licensed](LICENSE). Copyright (c) 2026 Pawan Kumar Sharma and GetYourResume contributors. Copies or substantial portions of the application source must retain the copyright and MIT permission notice. Visible website credit and a link to this repository are appreciated, but are not required by MIT; neither are GitHub stars or forks. Bundled Liberation fonts use SIL OFL 1.1; see their included license. The supplied creator portrait is a personal branding asset, not a generic stock image for reuse in other projects.
 
 ## Roadmap
 
@@ -192,6 +194,4 @@ Application source is MIT licensed; see `LICENSE`. Bundled Liberation fonts use 
 - Optional stronger quota accounting if it can be supported without paid infrastructure or personal-data retention.
 - Additional supported storage migrations as schemas evolve.
 
-## License
-
-[MIT](LICENSE). Dependencies retain their own licenses. Cloudflare-hosted models have separate provider/model terms.
+Dependencies retain their own licenses. Cloudflare-hosted models have separate provider/model terms.
